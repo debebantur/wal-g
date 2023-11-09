@@ -13,7 +13,7 @@ import (
 
 type DBInfo struct {
 	DBName string
-	Oid    int64
+	Oid    string
 }
 
 type RelNames struct {
@@ -96,7 +96,7 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			tracelog.ErrorLogger.FatalfOnError("unable to list tables` file directory %v", err)
 		}
 		tracelog.DebugLogger.Printf("entries num: %d", len(entries))
-		tracelog.DebugLogger.Printf("was in: %s", fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%s/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
+		tracelog.DebugLogger.Printf("was in: %s", fmt.Sprintf("/var/lib/greenplum/data1/primary/gpseg%s/base/%s/", segnum, db.Oid))
 
 		for _, e := range entries {
 			tracelog.DebugLogger.Printf("was entry: %v", e)
@@ -136,6 +136,7 @@ func GetDatabaseConnections(conn *pgx.Conn) ([]DBInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	tracelog.DebugLogger.Printf("raw data: %v", rows)
 	names := make([]DBInfo, 0)
 	for rows.Next() {
 		tem := DBInfo{}
@@ -143,6 +144,7 @@ func GetDatabaseConnections(conn *pgx.Conn) ([]DBInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+		tracelog.DebugLogger.Printf("existing table: %s size: %s", tem.DBName, tem.Oid)
 		names = append(names, tem)
 	}
 

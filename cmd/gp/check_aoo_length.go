@@ -20,7 +20,7 @@ var checkCmd = &cobra.Command{
 
 func init() {
 	checkCmd.PersistentFlags().StringVarP(&port, "port", "p", "5432", `database port (default: "5432")`)
-	checkCmd.PersistentFlags().StringVarP(&port, "segnum", "s", "", `database segment number`)
+	checkCmd.PersistentFlags().StringVarP(&segnum, "segnum", "s", "", `database segment number`)
 
 	cmd.AddCommand(checkCmd)
 }

@@ -42,6 +42,11 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 		tracelog.ErrorLogger.FatalfOnError("unable to list databases %v", err)
 	}
 
+	err = conn1.Close()
+	if err != nil {
+		tracelog.WarningLogger.Println("failed close conn")
+	}
+
 	for _, db := range DBNames {
 		tracelog.DebugLogger.Println(db.DBName)
 		conn, err := postgres.Connect(func(config *pgx.ConnConfig) error {
@@ -78,11 +83,14 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			if err := rows.Scan(&row.FileName, &row.TableName, &row.SegRelName); err != nil {
 				tracelog.ErrorLogger.FatalfOnError("unable to parse query output %v", err)
 			}
-			row.Size, err = GetTableMetadataEOF(row, conn)
+			relNames[row.FileName] = row
+		}
+
+		for _, v := range relNames {
+			v.Size, err = GetTableMetadataEOF(v, conn)
 			if err != nil {
 				tracelog.ErrorLogger.FatalfOnError("unable to get table metadata %v", err)
 			}
-			relNames[row.FileName] = row
 		}
 
 		for _, e := range entries {
@@ -106,6 +114,10 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			if v.Size > 0 {
 				tracelog.ErrorLogger.Fatalf("file for table %s is shorter than expected for %d", v.TableName, -v.Size)
 			}
+		}
+		err = conn.Close()
+		if err != nil {
+			tracelog.WarningLogger.Println("failed close conn")
 		}
 	}
 

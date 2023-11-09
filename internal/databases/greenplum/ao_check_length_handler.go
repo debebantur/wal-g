@@ -77,20 +77,23 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 		}
 		defer rows.Close()
 
-		relNames := make(map[string]RelNames, 0)
+		mas := make([]RelNames, 0)
 		for rows.Next() {
 			row := RelNames{}
 			if err := rows.Scan(&row.FileName, &row.TableName, &row.SegRelName); err != nil {
 				tracelog.ErrorLogger.FatalfOnError("unable to parse query output %v", err)
 			}
-			relNames[row.FileName] = row
+			mas = append(mas, row)
 		}
 
-		for _, v := range relNames {
+		relNames := make(map[string]RelNames, 0)
+		for _, v := range mas {
 			v.Size, err = GetTableMetadataEOF(v, conn)
 			if err != nil {
 				tracelog.ErrorLogger.FatalfOnError("unable to get table metadata %v", err)
 			}
+			relNames[v.FileName] = v
+			tracelog.DebugLogger.Printf("table: %s size: %d", v.TableName, v.Size)
 		}
 
 		for _, e := range entries {
@@ -105,14 +108,16 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 					tracelog.WarningLogger.Printf("no metadata for file %s", parts[0])
 					continue
 				}
+				tracelog.DebugLogger.Printf("was table: %s size: %d", tem.TableName, tem.Size)
 				tem.Size -= f.Size()
 				relNames[parts[0]] = tem
+				tracelog.DebugLogger.Printf("now table: %s size: %d", relNames[parts[0]].TableName, relNames[parts[0]].Size)
 			}
 		}
 
 		for _, v := range relNames {
 			if v.Size > 0 {
-				tracelog.ErrorLogger.Fatalf("file for table %s is shorter than expected for %d", v.TableName, -v.Size)
+				tracelog.ErrorLogger.Fatalf("file for table %s is shorter than expected for %d", v.TableName, v.Size)
 			}
 		}
 		err = conn.Close()

@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 	"github.com/wal-g/tracelog"
 	"github.com/wal-g/wal-g/internal/databases/postgres"
 )
 
 type DBInfo struct {
 	DBName string
-	Oid    string
+	Oid    pgtype.OID
 }
 
 type RelNames struct {
@@ -91,12 +92,12 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			tracelog.DebugLogger.Printf("table: %s size: %d", v.TableName, v.Size)
 		}
 
-		entries, err := os.ReadDir(fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%s/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
+		entries, err := os.ReadDir(fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%d/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
 		if err != nil {
 			tracelog.ErrorLogger.FatalfOnError("unable to list tables` file directory %v", err)
 		}
 		tracelog.DebugLogger.Printf("entries num: %d", len(entries))
-		tracelog.DebugLogger.Printf("was in: %s", fmt.Sprintf("/var/lib/greenplum/data1/primary/gpseg%s/base/%s/", segnum, db.Oid))
+		tracelog.DebugLogger.Printf("was in: %s", fmt.Sprintf("/var/lib/greenplum/data1/primary/gpseg%s/base/%d/", segnum, db.Oid))
 
 		for _, e := range entries {
 			tracelog.DebugLogger.Printf("was entry: %v", e)
@@ -140,11 +141,10 @@ func GetDatabaseConnections(conn *pgx.Conn) ([]DBInfo, error) {
 	names := make([]DBInfo, 0)
 	for rows.Next() {
 		tem := DBInfo{}
-		err = rows.Scan(&tem.DBName, &tem.Oid)
-		if err != nil {
+		if err = rows.Scan(&tem.DBName, &tem.Oid); err != nil {
 			return nil, err
 		}
-		tracelog.DebugLogger.Printf("existing table: %s size: %s", tem.DBName, tem.Oid)
+		tracelog.DebugLogger.Printf("existing table: %s oid: %d", tem.DBName, tem.Oid)
 		names = append(names, tem)
 	}
 

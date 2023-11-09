@@ -13,7 +13,7 @@ import (
 
 type DBInfo struct {
 	DBName string
-	Oid    string
+	Oid    int64
 }
 
 type RelNames struct {

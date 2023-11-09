@@ -62,11 +62,6 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			tracelog.ErrorLogger.FatalfOnError("unable to get connection %v", err)
 		}
 
-		entries, err := os.ReadDir(fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%s/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
-		if err != nil {
-			tracelog.ErrorLogger.FatalfOnError("unable to list tables` file directory %v", err)
-		}
-
 		rows, err := conn.Query(`SELECT a.relfilenode file, a.relname tname, b.relname segname 
 	FROM (SELECT relname, relid, segrelid, relpersistence, relfilenode FROM pg_class JOIN pg_appendonly ON oid = relid) a,
 	(SELECT relname, segrelid FROM pg_class JOIN pg_appendonly ON oid = segrelid) b
@@ -96,7 +91,15 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			tracelog.DebugLogger.Printf("table: %s size: %d", v.TableName, v.Size)
 		}
 
+		entries, err := os.ReadDir(fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%s/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
+		if err != nil {
+			tracelog.ErrorLogger.FatalfOnError("unable to list tables` file directory %v", err)
+		}
+		tracelog.DebugLogger.Printf("entries num: %d", len(entries))
+		tracelog.DebugLogger.Printf("was in: %s", fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%s/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
+
 		for _, e := range entries {
+			tracelog.DebugLogger.Printf("was entry: %v", e)
 			parts := strings.Split(e.Name(), ".")
 			f, err := e.Info()
 			if err != nil {

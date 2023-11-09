@@ -82,7 +82,7 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			mas = append(mas, row)
 		}
 
-		relNames := make(map[string]RelNames, 0)
+		relNames := make(map[string]RelNames)
 		for _, v := range mas {
 			v.Size, err = GetTableMetadataEOF(v, conn)
 			if err != nil {
@@ -119,7 +119,9 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			}
 		}
 
+		tracelog.DebugLogger.Printf("map size: %d", len(relNames))
 		for _, v := range relNames {
+			tracelog.DebugLogger.Printf("element: %+v", v)
 			if v.Size > 0 {
 				tracelog.ErrorLogger.Fatalf("file for table %s is shorter than expected for %d", v.TableName, v.Size)
 			}

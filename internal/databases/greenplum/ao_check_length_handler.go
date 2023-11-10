@@ -18,7 +18,7 @@ type DBInfo struct {
 }
 
 type RelNames struct {
-	FileName   string
+	FileName   pgtype.OID
 	TableName  string
 	SegRelName string
 	Size       int64
@@ -91,7 +91,7 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			if err != nil {
 				tracelog.ErrorLogger.FatalfOnError("unable to get table metadata %v", err)
 			}
-			relNames[v.FileName] = v
+			relNames[fmt.Sprintf("%d", v.FileName)] = v
 			tracelog.DebugLogger.Printf("table: %s size: %d", v.TableName, v.Size)
 		}
 

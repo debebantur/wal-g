@@ -9,6 +9,7 @@ import (
 	"github.com/greenplum-db/gp-common-go-libs/cluster"
 	"github.com/jackc/pgx"
 	"github.com/wal-g/tracelog"
+	"github.com/wal-g/wal-g/internal"
 	"github.com/wal-g/wal-g/internal/databases/postgres"
 )
 
@@ -59,9 +60,13 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 
 	cmd := []string{
 		// nohup to avoid the SIGHUP on SSH session disconnect
-		"nohup", "/ust/bin/wal-g --config=/etc/wal-g/wal-g.yaml domagic",
+		"nohup", "wal-g seg-cmd-run",
+		"domagic",
+		fmt.Sprintf("--content-id=%d", segment.ContentID),
 		// actual arguments to be passed to the backup-push command
 		backupPushArgsLine,
+		// pass the config file location
+		fmt.Sprintf("--config=%s", internal.CfgFile),
 		// forward stdout and stderr to the log file
 		"&>>", formatSegmentLogPath(contentID),
 		// run in the background and get the launched process PID

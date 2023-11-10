@@ -82,7 +82,10 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			mas = append(mas, row)
 		}
 
-		relNames := make(map[string]RelNames)
+		tracelog.DebugLogger.Printf("mas size: %d", len(mas))
+		tracelog.DebugLogger.Printf("mas: %v", mas)
+
+		relNames := make(map[string]RelNames, 0)
 		for _, v := range mas {
 			v.Size, err = GetTableMetadataEOF(v, conn)
 			if err != nil {

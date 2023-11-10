@@ -19,7 +19,7 @@ func /*(some handler)*/ CheckWT4F() {
 		tracelog.ErrorLogger.FatalfOnError("unable to get connection %v", err)
 	}
 
-	globalCluster, _, _, err := getGpClusterInf(conn)
+	globalCluster, _, _, err := getGpClusterInfo(conn)
 	if err != nil {
 		tracelog.ErrorLogger.FatalfOnError("wtf %v", err)
 	}

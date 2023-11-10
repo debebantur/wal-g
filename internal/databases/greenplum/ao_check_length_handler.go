@@ -24,8 +24,8 @@ func /*(some handler)*/ CheckWT4F() {
 		tracelog.ErrorLogger.FatalfOnError("wtf %v", err)
 	}
 
-	remoteOutput := globalCluster.GenerateAndExecuteCommand("Running wal-g",
-		cluster.ON_SEGMENTS|cluster.INCLUDE_MASTER,
+	remoteOutput := globalCluster.GenerateAndExecuteCommand("Testing command",
+		cluster.ON_SEGMENTS,
 		func(contentID int) string {
 			return buildBackupPushCommand(contentID, globalCluster)
 		})

@@ -60,20 +60,18 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 
 	cmd := []string{
 		// nohup to avoid the SIGHUP on SSH session disconnect
-		"nohup", "wal-g seg-cmd-run",
+		"nohup", "wal-g",
+		fmt.Sprintf("--config=%s", internal.CfgFile),
 		"domagic",
-		fmt.Sprintf("--content-id=%d", segment.ContentID),
 		// actual arguments to be passed to the backup-push command
 		backupPushArgsLine,
-		// pass the config file location
-		fmt.Sprintf("--config=%s", internal.CfgFile),
 		// forward stdout and stderr to the log file
 		"&>>", formatSegmentLogPath(contentID),
 		// run in the background and get the launched process PID
 		"& echo $!",
 	}
-
-	cmdLine := strings.Join(cmd, " ")
+	// sudo sh -c
+	cmdLine := "sudo sh -c '" + strings.Join(cmd, " ") + "'"
 	tracelog.InfoLogger.Printf("Command to run on segment %d: %s", contentID, cmdLine)
 	return cmdLine
 }

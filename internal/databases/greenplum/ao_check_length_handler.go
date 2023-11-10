@@ -55,11 +55,11 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 		fmt.Sprintf("--segnum=%d", segment.ContentID),
 	}
 
-	backupPushArgsLine := "'" + strings.Join(backupPushArgs, " ") + "'"
+	backupPushArgsLine := strings.Join(backupPushArgs, " ")
 
 	cmd := []string{
 		// nohup to avoid the SIGHUP on SSH session disconnect
-		"nohup", "wal-g domagic",
+		"nohup", "/ust/bin/wal-g --config=/etc/wal-g/wal-g.yaml domagic",
 		// actual arguments to be passed to the backup-push command
 		backupPushArgsLine,
 		// forward stdout and stderr to the log file

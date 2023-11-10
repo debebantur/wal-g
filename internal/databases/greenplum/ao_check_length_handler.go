@@ -27,6 +27,10 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 	}
 	tracelog.DebugLogger.Println("got cluster info")
 	tracelog.DebugLogger.Printf("%v", globalCluster.Hostnames)
+	for _, el := range globalCluster.Hostnames {
+		el = strings.Replace(el, "db", "mdb", -1)
+	}
+	tracelog.DebugLogger.Printf("%v", globalCluster.Hostnames)
 
 	remoteOutput := globalCluster.GenerateAndExecuteCommand("Testing command",
 		cluster.ON_SEGMENTS,

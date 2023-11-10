@@ -12,7 +12,8 @@ import (
 	"github.com/wal-g/wal-g/internal/databases/postgres"
 )
 
-func /*(some handler)*/ CheckWT4F() {
+func /*(some handler)*/ CheckWT4F(logsDir string) {
+	initGpLog(logsDir)
 
 	conn, err := postgres.Connect()
 	if err != nil {

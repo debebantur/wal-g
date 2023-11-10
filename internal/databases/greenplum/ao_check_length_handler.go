@@ -23,15 +23,20 @@ func /*(some handler)*/ CheckWT4F() {
 	if err != nil {
 		tracelog.ErrorLogger.FatalfOnError("wtf %v", err)
 	}
+	tracelog.DebugLogger.Println("got cluster info")
+	tracelog.DebugLogger.Printf("%v", globalCluster.Hostnames)
 
 	remoteOutput := globalCluster.GenerateAndExecuteCommand("Testing command",
 		cluster.ON_SEGMENTS,
 		func(contentID int) string {
+			tracelog.DebugLogger.Println("executing generator")
 			return buildBackupPushCommand(contentID, globalCluster)
 		})
 	globalCluster.CheckClusterError(remoteOutput, "Unable to run wal-g", func(contentID int) string {
 		return "Unable to run wal-g"
 	}, true)
+
+	tracelog.DebugLogger.Println("generated and executed command")
 
 	for _, command := range remoteOutput.Commands {
 		if command.Stderr != "" {

@@ -92,6 +92,9 @@ func /*(some handler)*/ CheckWTF(port, segnum string) {
 			tracelog.DebugLogger.Printf("table: %s size: %d", v.TableName, v.Size)
 		}
 
+		tracelog.DebugLogger.Printf("relations size: %d", len(relNames))
+		tracelog.DebugLogger.Printf("relations: %v", relNames)
+
 		entries, err := os.ReadDir(fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%d/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
 		if err != nil {
 			tracelog.ErrorLogger.FatalfOnError("unable to list tables` file directory %v", err)

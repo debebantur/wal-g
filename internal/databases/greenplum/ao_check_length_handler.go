@@ -2,183 +2,97 @@ package greenplum
 
 import (
 	"fmt"
-	"os"
-	"strconv"
+	"regexp"
 	"strings"
 
+	"github.com/blang/semver"
+	"github.com/greenplum-db/gp-common-go-libs/cluster"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgtype"
 	"github.com/wal-g/tracelog"
 	"github.com/wal-g/wal-g/internal/databases/postgres"
 )
 
-type DBInfo struct {
-	DBName string
-	Oid    pgtype.OID
-}
+func /*(some handler)*/ CheckWT4F() {
 
-type RelNames struct {
-	FileName   pgtype.OID
-	TableName  string
-	SegRelName string
-	Size       int64
-}
-
-func /*(some handler)*/ CheckWTF(port, segnum string) {
-
-	conn1, err := postgres.Connect(func(config *pgx.ConnConfig) error {
-		a, err := strconv.Atoi(port)
-		if err != nil {
-			return err
-		}
-		config.Port = uint16(a)
-		return nil
-	})
+	conn, err := postgres.Connect()
 	if err != nil {
 		tracelog.ErrorLogger.FatalfOnError("unable to get connection %v", err)
 	}
 
-	DBNames, err := GetDatabaseConnections(conn1)
+	globalCluster, _, _, err := getGpClusterInf(conn)
 	if err != nil {
-		tracelog.ErrorLogger.FatalfOnError("unable to list databases %v", err)
+		tracelog.ErrorLogger.FatalfOnError("wtf %v", err)
 	}
 
-	err = conn1.Close()
-	if err != nil {
-		tracelog.WarningLogger.Println("failed close conn")
-	}
-
-	for _, db := range DBNames {
-		tracelog.DebugLogger.Println(db.DBName)
-		conn, err := postgres.Connect(func(config *pgx.ConnConfig) error {
-			a, err := strconv.Atoi(port)
-			if err != nil {
-				return err
-			}
-			config.Port = uint16(a)
-			config.Database = db.DBName
-			return nil
+	remoteOutput := globalCluster.GenerateAndExecuteCommand("Running wal-g",
+		cluster.ON_SEGMENTS|cluster.INCLUDE_MASTER,
+		func(contentID int) string {
+			return buildBackupPushCommand(contentID, globalCluster)
 		})
-		if err != nil {
-			tracelog.ErrorLogger.FatalfOnError("unable to get connection %v", err)
-		}
+	globalCluster.CheckClusterError(remoteOutput, "Unable to run wal-g", func(contentID int) string {
+		return "Unable to run wal-g"
+	}, true)
 
-		rows, err := conn.Query(`SELECT a.relfilenode file, a.relname tname, b.relname segname 
-	FROM (SELECT relname, relid, segrelid, relpersistence, relfilenode FROM pg_class JOIN pg_appendonly ON oid = relid) a,
-	(SELECT relname, segrelid FROM pg_class JOIN pg_appendonly ON oid = segrelid) b
-	WHERE a.relpersistence = 'p' AND a.segrelid = b.segrelid;`)
-
-		if err != nil {
-			tracelog.ErrorLogger.FatalfOnError("unable to get ao/aocs tables %v", err)
-		}
-		defer rows.Close()
-
-		mas := make([]RelNames, 0)
-		for rows.Next() {
-			row := RelNames{}
-			if err := rows.Scan(&row.FileName, &row.TableName, &row.SegRelName); err != nil {
-				tracelog.ErrorLogger.FatalfOnError("unable to parse query output %v", err)
-			}
-			mas = append(mas, row)
-		}
-
-		tracelog.DebugLogger.Printf("mas size: %d", len(mas))
-		tracelog.DebugLogger.Printf("mas: %v", mas)
-
-		relNames := make(map[string]RelNames, 0)
-		for _, v := range mas {
-			v.Size, err = GetTableMetadataEOF(v, conn)
-			if err != nil {
-				tracelog.ErrorLogger.FatalfOnError("unable to get table metadata %v", err)
-			}
-			relNames[fmt.Sprintf("%d", v.FileName)] = v
-			tracelog.DebugLogger.Printf("table: %s size: %d", v.TableName, v.Size)
-		}
-
-		tracelog.DebugLogger.Printf("relations size: %d", len(relNames))
-		tracelog.DebugLogger.Printf("relations: %v", relNames)
-
-		entries, err := os.ReadDir(fmt.Sprintf("/var/lib/greenplum/data1/primary/%s/base/%d/", fmt.Sprintf("gpseg%s", segnum), db.Oid))
-		if err != nil {
-			tracelog.ErrorLogger.FatalfOnError("unable to list tables` file directory %v", err)
-		}
-		tracelog.DebugLogger.Printf("entries num: %d", len(entries))
-		tracelog.DebugLogger.Printf("was in: %s", fmt.Sprintf("/var/lib/greenplum/data1/primary/gpseg%s/base/%d/", segnum, db.Oid))
-
-		for _, e := range entries {
-			tracelog.DebugLogger.Printf("was entry: %v", e)
-			parts := strings.Split(e.Name(), ".")
-			f, err := e.Info()
-			if err != nil {
-				tracelog.ErrorLogger.FatalfOnError("unable to get file data %v", err)
-			}
-			if !f.IsDir() {
-				tem, ok := relNames[parts[0]]
-				if !ok {
-					tracelog.WarningLogger.Printf("no metadata for file %s", parts[0])
-					continue
-				}
-				tracelog.DebugLogger.Printf("was table: %s size: %d", tem.TableName, tem.Size)
-				tem.Size -= f.Size()
-				relNames[parts[0]] = tem
-				tracelog.DebugLogger.Printf("now table: %s size: %d", relNames[parts[0]].TableName, relNames[parts[0]].Size)
-			}
-		}
-
-		tracelog.DebugLogger.Printf("map size: %d", len(relNames))
-		for _, v := range relNames {
-			tracelog.DebugLogger.Printf("element: %+v", v)
-			if v.Size > 0 {
-				tracelog.ErrorLogger.Fatalf("file for table %s is shorter than expected for %d", v.TableName, v.Size)
-			}
-		}
-		err = conn.Close()
-		if err != nil {
-			tracelog.WarningLogger.Println("failed close conn")
+	for _, command := range remoteOutput.Commands {
+		if command.Stderr != "" {
+			tracelog.ErrorLogger.Printf("stderr (segment %d):\n%s\n", command.Content, command.Stderr)
 		}
 	}
 
 }
 
-func GetDatabaseConnections(conn *pgx.Conn) ([]DBInfo, error) {
-	rows, err := conn.Query("SELECT datname, oid FROM pg_database WHERE datallowconn")
-	if err != nil {
-		return nil, err
-	}
-	tracelog.DebugLogger.Printf("raw data: %v", rows)
-	names := make([]DBInfo, 0)
-	for rows.Next() {
-		tem := DBInfo{}
-		if err = rows.Scan(&tem.DBName, &tem.Oid); err != nil {
-			return nil, err
-		}
-		tracelog.DebugLogger.Printf("existing table: %s oid: %d", tem.DBName, tem.Oid)
-		names = append(names, tem)
+func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) string {
+	segment := globalCluster.ByContent[contentID][0]
+
+	backupPushArgs := []string{
+		fmt.Sprintf("--port=%d", segment.Port),
+		fmt.Sprintf("--segnum=%d", segment.ContentID),
 	}
 
-	return names, nil
+	backupPushArgsLine := "'" + strings.Join(backupPushArgs, " ") + "'"
+
+	cmd := []string{
+		// nohup to avoid the SIGHUP on SSH session disconnect
+		"nohup", "wal-g domagic",
+		// actual arguments to be passed to the backup-push command
+		backupPushArgsLine,
+		// forward stdout and stderr to the log file
+		"&>>", formatSegmentLogPath(contentID),
+		// run in the background and get the launched process PID
+		"& echo $!",
+	}
+
+	cmdLine := strings.Join(cmd, " ")
+	tracelog.InfoLogger.Printf("Command to run on segment %d: %s", contentID, cmdLine)
+	return cmdLine
 }
 
-func GetTableMetadataEOF(row RelNames, conn *pgx.Conn) (int64, error) {
-	query := ""
-	if !strings.Contains(row.SegRelName, "aocs") {
-		query = fmt.Sprintf("SELECT sum(eofuncompressed) FROM pg_aoseg.%s", row.SegRelName)
-	} else {
-		query = fmt.Sprintf("SELECT sum(eof_uncompressed) FROM gp_toolkit.__gp_aocsseg('\"%s\"')", row.TableName)
+func getGpClusterInf(conn *pgx.Conn) (globalCluster *cluster.Cluster, version semver.Version, systemIdentifier *uint64, err error) {
+	queryRunner, err := NewGpQueryRunner(conn)
+	if err != nil {
+		return globalCluster, semver.Version{}, nil, err
 	}
 
-	// get expected size of table in metadata
-	size, err := conn.Query(query)
+	versionStr, err := queryRunner.GetGreenplumVersion()
 	if err != nil {
-		return 0, err
+		return globalCluster, semver.Version{}, nil, err
 	}
-	defer size.Close()
-	var metaEOF int64
-	for size.Next() {
-		err = size.Scan(&metaEOF)
-		if err != nil {
-			metaEOF = int64(0)
-		}
+	tracelog.InfoLogger.Printf("Greenplum version: %s", versionStr)
+	versionStart := strings.Index(versionStr, "(Greenplum Database ") + len("(Greenplum Database ")
+	versionEnd := strings.Index(versionStr, ")")
+	versionStr = versionStr[versionStart:versionEnd]
+	pattern := regexp.MustCompile(`\d+\.\d+\.\d+`)
+	threeDigitVersion := pattern.FindStringSubmatch(versionStr)[0]
+	semVer, err := semver.Make(threeDigitVersion)
+	if err != nil {
+		return globalCluster, semver.Version{}, nil, err
 	}
-	return metaEOF, nil
+
+	segConfigs, err := queryRunner.GetGreenplumSegmentsInfo(semVer)
+	if err != nil {
+		return globalCluster, semver.Version{}, nil, err
+	}
+	globalCluster = cluster.NewCluster(segConfigs)
+
+	return globalCluster, semVer, queryRunner.SystemIdentifier, nil
 }

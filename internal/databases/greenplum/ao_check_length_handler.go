@@ -110,7 +110,7 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 		// forward stdout and stderr to the log file
 		"&>>", formatSegmentLogPath(contentID),
 		// run in the background and get the launched process PID
-		"& echo $!",
+		//"& echo $!",
 	}
 	// sudo sh -c
 	//cmdLine := "sudo sh -c '" + strings.Join(cmd, " ") + "'"

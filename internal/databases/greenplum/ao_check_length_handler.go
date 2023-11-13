@@ -50,14 +50,42 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 
 	tracelog.DebugLogger.Println("generated and executed command")
 
+	c := make(map[int]string, 0)
 	for _, command := range remoteOutput.Commands {
 		if command.Stderr != "" {
 			tracelog.ErrorLogger.Printf("stderr (segment %d):\n%s\n", command.Content, command.Stderr)
 		}
+		tracelog.DebugLogger.Printf("command output: %s", command.Stdout)
+		c[command.Content] = command.Stdout
 	}
 
 	if remoteOutput.NumErrors > 0 {
-		tracelog.ErrorLogger.Fatalln("failed checks")
+		tracelog.ErrorLogger.Fatalln("failed to run check")
+	}
+
+	remoteOutput1 := globalCluster.GenerateAndExecuteCommand("Testing command",
+		cluster.ON_SEGMENTS,
+		func(contentID int) string {
+			cmd := fmt.Sprintf("wait %s | echo $?", c[contentID])
+			tracelog.DebugLogger.Printf("Command to run on segment %d: %s", contentID, cmd)
+			return cmd
+		})
+	globalCluster.CheckClusterError(remoteOutput, "Unable to run wal-g", func(contentID int) string {
+		return "Unable to run wal-g"
+	}, true)
+
+	for _, command := range remoteOutput1.Commands {
+		if command.Stderr != "" {
+			tracelog.ErrorLogger.Printf("stderr (segment %d):\n%s\n", command.Content, command.Stderr)
+		}
+		tracelog.DebugLogger.Printf("Command stdout jb seg %d: %s", command.Content, command.Stdout)
+		if command.Stdout != "0" {
+			tracelog.ErrorLogger.Printf("failed check (segment %d):\n%s\n", command.Content, command.Stdout)
+		}
+	}
+
+	if remoteOutput.NumErrors > 0 {
+		tracelog.ErrorLogger.Fatalln("failed to run check")
 	}
 
 }

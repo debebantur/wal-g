@@ -20,6 +20,12 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 	if err != nil {
 		tracelog.ErrorLogger.FatalfOnError("unable to get connection %v", err)
 	}
+	defer func() {
+		err := conn.Close()
+		if err != nil {
+			tracelog.ErrorLogger.Printf("failed to close connection %v", err)
+		}
+	}()
 
 	globalCluster, _, _, err := getGpClusterInfo(conn)
 	if err != nil {
@@ -50,6 +56,10 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 		}
 	}
 
+	if remoteOutput.NumErrors > 0 {
+		tracelog.ErrorLogger.Fatalln("failed checks")
+	}
+
 }
 
 func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) string {
@@ -70,7 +80,7 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 		// actual arguments to be passed to the backup-push command
 		backupPushArgsLine,
 		// forward stdout and stderr to the log file
-		"&>>", formatSegmentLogPath(contentID),
+		// "&>>", formatSegmentLogPath(contentID),
 		// run in the background and get the launched process PID
 		"& echo $!",
 	}

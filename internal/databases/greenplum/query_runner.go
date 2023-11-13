@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/wal-g/wal-g/internal/walparser"
 
@@ -138,7 +137,7 @@ func (queryRunner *GpQueryRunner) GetGreenplumSegmentsInfo(semVer semver.Version
 			ContentID: contentID,
 			Role:      role,
 			Port:      port,
-			Hostname:  strings.Replace(hostname, "db", "mdb", -1),
+			Hostname:  hostname,
 			DataDir:   dataDir,
 		}
 		segments = append(segments, segment)

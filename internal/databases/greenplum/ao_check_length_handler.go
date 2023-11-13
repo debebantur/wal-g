@@ -33,10 +33,10 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 	}
 	tracelog.DebugLogger.Println("got cluster info")
 	tracelog.DebugLogger.Printf("%v", globalCluster.Hostnames)
-	for k, el := range globalCluster.Hostnames {
-		globalCluster.Hostnames[k] = strings.Replace(el, "db", "mdb", -1)
-	}
-	tracelog.DebugLogger.Printf("%v", globalCluster.Hostnames)
+	// for k, el := range globalCluster.Hostnames {
+	// 	globalCluster.Hostnames[k] = strings.Replace(el, "db", "mdb", -1)
+	// }
+	// tracelog.DebugLogger.Printf("%v", globalCluster.Hostnames)
 
 	remoteOutput := globalCluster.GenerateAndExecuteCommand("Testing command",
 		cluster.ON_SEGMENTS,
@@ -45,7 +45,7 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 			return buildBackupPushCommand(contentID, globalCluster)
 		})
 	globalCluster.CheckClusterError(remoteOutput, "Unable to run wal-g", func(contentID int) string {
-		return "Unable to run wal-g"
+		return fmt.Sprintf("Unable to run wal-g on seg %d", contentID)
 	}, true)
 
 	tracelog.DebugLogger.Println("generated and executed command")
@@ -62,32 +62,6 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 	if remoteOutput.NumErrors > 0 {
 		tracelog.ErrorLogger.Fatalln("failed to run check")
 	}
-
-	// remoteOutput1 := globalCluster.GenerateAndExecuteCommand("Testing command",
-	// 	cluster.ON_SEGMENTS,
-	// 	func(contentID int) string {
-	// 		cmd := fmt.Sprintf("wait %s | echo $?", c[contentID][:len(c[contentID])-1])
-	// 		tracelog.DebugLogger.Printf("Command to run on segment %d: %s", contentID, cmd)
-	// 		return cmd
-	// 	})
-	// globalCluster.CheckClusterError(remoteOutput, "Unable to run wal-g", func(contentID int) string {
-	// 	return "Unable to run wal-g"
-	// }, true)
-
-	// for _, command := range remoteOutput1.Commands {
-	// 	if command.Stderr != "" {
-	// 		tracelog.ErrorLogger.Printf("stderr (segment %d):\n%s\n", command.Content, command.Stderr)
-	// 	}
-	// 	tracelog.DebugLogger.Printf("Command stdout jb seg %d: %s", command.Content, command.Stdout)
-	// 	if command.Stdout != "0" {
-	// 		tracelog.ErrorLogger.Printf("failed check (segment %d):\n%s\n", command.Content, command.Stdout)
-	// 	}
-	// }
-
-	// if remoteOutput.NumErrors > 0 {
-	// 	tracelog.ErrorLogger.Fatalln("failed to run check")
-	// }
-
 }
 
 func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) string {

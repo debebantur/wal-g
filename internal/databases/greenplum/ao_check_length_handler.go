@@ -85,7 +85,8 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 		"& echo $!",
 	}
 	// sudo sh -c
-	cmdLine := "sudo sh -c '" + strings.Join(cmd, " ") + "'"
+	//cmdLine := "sudo sh -c '" + strings.Join(cmd, " ") + "'"
+	cmdLine := strings.Join(cmd, " ")
 	tracelog.InfoLogger.Printf("Command to run on segment %d: %s", contentID, cmdLine)
 	return cmdLine
 }

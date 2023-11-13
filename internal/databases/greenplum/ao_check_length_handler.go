@@ -66,7 +66,7 @@ func /*(some handler)*/ CheckWT4F(logsDir string) {
 	remoteOutput1 := globalCluster.GenerateAndExecuteCommand("Testing command",
 		cluster.ON_SEGMENTS,
 		func(contentID int) string {
-			cmd := fmt.Sprintf("wait %s | echo $?", c[contentID])
+			cmd := fmt.Sprintf("wait %s | echo $?", c[contentID][:len(c[contentID])-1])
 			tracelog.DebugLogger.Printf("Command to run on segment %d: %s", contentID, cmd)
 			return cmd
 		})

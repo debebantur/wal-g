@@ -80,7 +80,7 @@ func buildBackupPushCommand(contentID int, globalCluster *cluster.Cluster) strin
 		// actual arguments to be passed to the backup-push command
 		backupPushArgsLine,
 		// forward stdout and stderr to the log file
-		// "&>>", formatSegmentLogPath(contentID),
+		"&>>", formatSegmentLogPath(contentID),
 		// run in the background and get the launched process PID
 		"& echo $!",
 	}

@@ -8,8 +8,7 @@ RUN apt-get update && \
     curl -sS https://downloads.mariadb.com/MariaDB/mariadb_repo_setup | /bin/bash -s -- --mariadb-server-version="mariadb-10.11" --os-type=ubuntu --os-version=bionic  && \
     DEBIAN_FRONTEND=noninteractive apt-get install --yes \
     mariadb-server \
-    mariadb-client \
-    mariadb-backup
+    mariadb-client
 
 RUN curl -s https://packagecloud.io/install/repositories/akopytov/sysbench/script.deb.sh | bash && apt -y install sysbench
 RUN rm -rf $MYSQLDATA

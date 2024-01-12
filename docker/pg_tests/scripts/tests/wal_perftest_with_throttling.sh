@@ -63,5 +63,3 @@ do
 done
 sleep 1
 /tmp/scripts/drop_pg.sh
-/tmp/scripts/parselogs.sh ${WAL_PUSH_LOGS}
-/tmp/scripts/parselogs.sh ${WAL_FETCH_LOGS}

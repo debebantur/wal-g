@@ -3,7 +3,7 @@ set -e -x
 
 rm -rf /var/lib/postgresql/10/main
 
-CONFIG_FILE="/tmp/configs/wal_perftest_config.json"
+CONFIG_FILE="/tmp/configs/wal_perftest_throttling_config.json"
 
 COMMON_CONFIG="/tmp/configs/common_config.json"
 TMP_CONFIG="/tmp/configs/tmp_config.json"
@@ -36,7 +36,7 @@ du -hs "${PGDATA}"
 
 i=0
 START=$(date +%s)
-while [ "$i" -le 101 ];
+while [ "$i" -le 100 ];
 do
     cp  "${PGDATA}"/pg_wal/"${WAL}" "${PGDATA}"/pg_wal/"${WAL}${i}"
     cp  "${PGDATA}"/pg_wal/"${WAL}" "${PGDATA}"/pg_wal/"${i}${WAL}"
@@ -54,7 +54,7 @@ test $DIFF -le 45
 /tmp/scripts/drop_pg.sh
 
 i=0
-while [ "$i" -le 101 ];
+while [ "$i" -le 100 ];
 do
     wal-g --config=${TMP_CONFIG} wal-fetch "${WAL}${i}" "${PGDATA}${i}"
     wal-g --config=${TMP_CONFIG} wal-fetch "${i}${WAL}" "${PGDATA}${i}A"

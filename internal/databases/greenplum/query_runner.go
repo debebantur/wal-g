@@ -371,24 +371,44 @@ func loadStorageMetadata(relStorageMap AoRelFileStorageMap, dbInfo postgres.PgDa
 
 func (queryRunner *GpQueryRunner) buildAORelPgClassQuery() (string, error) {
 	switch {
+	case queryRunner.Version >= 120000:
+		return `
+		SELECT seg.aooid, md5(seg.aotablefqn), 'pg_aoseg.' || quote_ident(aoseg_c.relname) AS aosegtablefqn,
+		  seg.relfilenode, seg.reltablespace, seg.relstorage, seg.relnatts
+		FROM pg_class aoseg_c
+		JOIN (
+			SELECT pg_ao.relid AS aooid, pg_ao.segrelid, 
+					aotables.aotablefqn, aotables.relstorage, 
+					aotables.relnatts, aotables.relfilenode, aotables.reltablespace
+			FROM pg_appendonly pg_ao
+			JOIN (
+			  SELECT c.oid, quote_ident(n.nspname) || '.' || quote_ident(c.relname) AS aotablefqn,
+			am.amname relstorage, c.relnatts, c.relfilenode, c.reltablespace
+			  FROM pg_class c
+			  JOIN pg_namespace n ON c.relnamespace = n.oid
+			  JOIN pg_am am ON c.relam = am.oid
+			  WHERE am.amname IN ('ao_row', 'ao_column') AND c.relpersistence = 'p'
+			  ) aotables ON pg_ao.relid = aotables.oid
+		) seg ON aoseg_c.oid = seg.segrelid;
+	`, nil
 	case queryRunner.Version >= 90000:
 		return `
-SELECT seg.aooid, md5(seg.aotablefqn), 'pg_aoseg.' || quote_ident(aoseg_c.relname) AS aosegtablefqn,
-	seg.relfilenode, seg.reltablespace, seg.relstorage, seg.relnatts 
-FROM pg_class aoseg_c
-JOIN (
-	SELECT pg_ao.relid AS aooid, pg_ao.segrelid, 
-			aotables.aotablefqn, aotables.relstorage, 
-			aotables.relnatts, aotables.relfilenode, aotables.reltablespace
-	FROM pg_appendonly pg_ao
+		SELECT seg.aooid, md5(seg.aotablefqn), 'pg_aoseg.' || quote_ident(aoseg_c.relname) AS aosegtablefqn,
+		seg.relfilenode, seg.reltablespace, seg.relstorage, seg.relnatts 
+	FROM pg_class aoseg_c
 	JOIN (
-		SELECT c.oid, quote_ident(n.nspname)|| '.' || quote_ident(c.relname) AS aotablefqn, 
-				c.relstorage, c.relnatts, c.relfilenode, c.reltablespace 
-		FROM pg_class c
-		JOIN pg_namespace n ON c.relnamespace = n.oid
-		WHERE relstorage IN ( 'ao', 'co' ) AND relpersistence='p'
-		) aotables ON pg_ao.relid = aotables.oid
-	) seg ON aoseg_c.oid = seg.segrelid;
+		SELECT pg_ao.relid AS aooid, pg_ao.segrelid, 
+				aotables.aotablefqn, aotables.relstorage, 
+				aotables.relnatts, aotables.relfilenode, aotables.reltablespace
+		FROM pg_appendonly pg_ao
+		JOIN (
+			SELECT c.oid, quote_ident(n.nspname)|| '.' || quote_ident(c.relname) AS aotablefqn, 
+					c.relstorage, c.relnatts, c.relfilenode, c.reltablespace 
+			FROM pg_class c
+			JOIN pg_namespace n ON c.relnamespace = n.oid
+			WHERE relstorage IN ( 'ao', 'co' ) AND relpersistence='p'
+			) aotables ON pg_ao.relid = aotables.oid
+		) seg ON aoseg_c.oid = seg.segrelid;
 `, nil
 	case queryRunner.Version == 0:
 		return "", postgres.NewNoPostgresVersionError()

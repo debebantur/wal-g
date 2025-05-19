@@ -15,7 +15,7 @@ type loggingTransport struct {
 
 func (s *loggingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	n, err := io.Copy(ioutil.Discard, r.Body)
-	tracelog.DebugLogger.Printf("bytes read: %d\n", n)
+	tracelog.DebugLogger.Printf("bytes read body: %d\n", n)
 
 	resp, err := s.underlying.RoundTrip(r)
 	if err != nil {

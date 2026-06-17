@@ -1,0 +1,9 @@
+diff a/internal/databases/postgres/tars_to_extract_provider.go b/internal/databases/postgres/tars_to_extract_provider.go	(rejected hunks)
+@@ -27,6 +27,7 @@ func (t FilesToExtractProviderImpl) Get(backup Backup, filesToUnwrap map[string]
+ 		return nil, nil, err
+ 	}
+ 	tracelog.DebugLogger.Printf("Tars to extract: '%+v'\n", tarNames)
++	// Here we form reader makers
+ 	concurrentTarsToExtract = make([]internal.ReaderMaker, 0, len(tarNames))
+ 	sequentialTarsToExtract = make([]internal.ReaderMaker, 0, 2)
+ 

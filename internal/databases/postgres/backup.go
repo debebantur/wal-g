@@ -61,17 +61,18 @@ func NewBackupInStorage(baseBackupFolder storage.Folder, name, storage string) (
 	return Backup{Backup: backup}, nil
 }
 
-func (backup *Backup) GetTarNames() ([]string, error) {
+// Filippov function to get tar names. Can get objects here
+func (backup *Backup) GetTars() ([]storage.Object, error) {
 	tarPartitionFolder := backup.GetTarPartitionFolder()
 	objects, _, err := tarPartitionFolder.ListFolder()
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to list backup '%s' for deletion", backup.Name)
 	}
-	result := make([]string, len(objects))
-	for id, object := range objects {
-		result[id] = object.GetName()
-	}
-	return result, nil
+	// result := make([]string, len(objects))
+	// for id, object := range objects {
+	// 	result[id] = object.GetName()
+	// }
+	return objects, nil
 }
 
 func (backup *Backup) GetSentinel() (BackupSentinelDto, error) {

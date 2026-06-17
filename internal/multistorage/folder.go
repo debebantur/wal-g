@@ -695,6 +695,22 @@ func (mf Folder) SetShowAllVersions(show bool) {
 	}
 }
 
+func (mf Folder) SetUseOldestVersion(use bool) {
+	tracelog.DebugLogger.Printf("setting use oldest version %t", use)
+	for _, folder := range mf.configuredRootFolders {
+		storage.SetUseOldestVersion(folder, use)
+	}
+}
+
+func (mf Folder) GetUseOldestVersion() bool {
+	for _, folder := range mf.configuredRootFolders {
+		if uvf, ok := folder.(storage.UseOldestVersionFolder); ok {
+			return uvf.GetUseOldestVersion()
+		}
+	}
+	return false
+}
+
 var (
 	ErrNoUsedStorages  = fmt.Errorf("no storages are used")
 	ErrNoAliveStorages = fmt.Errorf("no alive storages")

@@ -45,6 +45,7 @@ type Config struct {
 	EnableVersioning         string
 	DeleteBatchSize          int
 	showAllVersions          bool // When true, include deleted objects in listing (for st ls --all-versions)
+	useOldestVersion         bool // When true, ReadObject fetches the oldest available version (for backup-fetch --oldest-version)
 }
 
 type Secrets struct {

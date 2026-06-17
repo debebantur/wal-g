@@ -241,3 +241,24 @@ func SetShowAllVersions(folder Folder, show bool) bool {
 	}
 	return false
 }
+
+// UseOldestVersionFolder is an optional interface that folders can implement
+// to support fetching the oldest available version of each object.
+// This is useful for recovering backups when the latest version has been
+// deleted or tampered with (e.g. ransomware attack).
+type UseOldestVersionFolder interface {
+	SetUseOldestVersion(use bool)
+	GetUseOldestVersion() bool
+}
+
+// SetUseOldestVersion configures the folder to read the oldest available version
+// of each object instead of the current (latest) one.
+// Returns true if the folder supports this feature, false otherwise.
+func SetUseOldestVersion(folder Folder, use bool) bool {
+	uvf, ok := folder.(UseOldestVersionFolder)
+	if ok {
+		uvf.SetUseOldestVersion(use)
+		return true
+	}
+	return false
+}

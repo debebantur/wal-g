@@ -15,6 +15,7 @@ type StorageReaderMaker struct {
 	FileMode        int64
 }
 
+// Filippov add version for read
 func NewStorageReaderMaker(folder storage.Folder, relativePath string) *StorageReaderMaker {
 	return &StorageReaderMaker{folder, relativePath, relativePath, TarFileType, 0}
 }

@@ -1,0 +1,109 @@
+diff a/pkg/storages/s3/folder.go b/pkg/storages/s3/folder.go	(rejected hunks)
+@@ -28,6 +28,9 @@ const (
+ 	VersioningDisabled = "disabled"
+ )
+ 
++// ErrNoVersionsFound is returned when an object has no versions available.
++var ErrNoVersionsFound = errors.New("no versions found for object")
++
+ // TODO: Unit tests
+ type Folder struct {
+ 	s3API    s3iface.S3API
+@@ -128,13 +131,63 @@ func (folder *Folder) CopyObject(srcPath string, dstPath string) error {
+ }
+ 
+ func (folder *Folder) ReadObject(objectRelativePath string) (io.ReadCloser, error) {
++	if folder.config.useOldestVersion && folder.isVersioningEnabled() {
++		return folder.readOldestObjectVersion(objectRelativePath)
++	}
++	return folder.readObjectWithVersion(objectRelativePath, "")
++}
++
++// readOldestObjectVersion lists all versions of the object and reads the oldest one.
++func (folder *Folder) readOldestObjectVersion(objectRelativePath string) (io.ReadCloser, error) {
++	objectPath := folder.path + objectRelativePath
++
++	var oldestVersion *versionInfo
++	input := &s3.ListObjectVersionsInput{
++		Bucket: folder.bucket,
++		Prefix: aws.String(objectPath),
++	}
++	err := folder.s3API.ListObjectVersionsPages(input, func(out *s3.ListObjectVersionsOutput, _ bool) bool {
++		for _, v := range out.Versions {
++			if *v.Key != objectPath {
++				continue
++			}
++			vi := &versionInfo{
++				relativePath: objectRelativePath,
++				lastModified: *v.LastModified,
++				size:         *v.Size,
++				versionID:    *v.VersionId,
++				isLatest:     *v.IsLatest,
++			}
++			if oldestVersion == nil || vi.lastModified.Before(oldestVersion.lastModified) {
++				oldestVersion = vi
++			}
++		}
++		return true
++	})
++	if err != nil {
++		return nil, errors.Wrapf(err, "failed to list versions for object '%s'", objectPath)
++	}
++	if oldestVersion == nil {
++		return nil, errors.Wrapf(ErrNoVersionsFound, "object '%s' has no versions in S3", objectPath)
++	}
++	tracelog.InfoLogger.Printf("Using oldest version %s (modified %s) for object '%s'",
++		oldestVersion.versionID, oldestVersion.lastModified.Format(time.RFC3339), objectPath)
++	return folder.readObjectWithVersion(objectRelativePath, oldestVersion.versionID)
++}
++
++// readObjectWithVersion reads an object from S3, optionally specifying a version ID.
++// Pass an empty string for versionID to read the current (latest) version.
++func (folder *Folder) readObjectWithVersion(objectRelativePath string, versionID string) (io.ReadCloser, error) {
+ 	objectPath := folder.path + objectRelativePath
+ 	input := &s3.GetObjectInput{
+ 		Bucket: folder.bucket,
+ 		Key:    aws.String(objectPath),
+ 	}
++	if versionID != "" {
++		input.VersionId = aws.String(versionID)
++	}
+ 
+-	if folder.uploader.serverSideEncryption != "" && folder.uploader.SSECustomerKey != "" {
++	if folder.uploader != nil && folder.uploader.serverSideEncryption != "" && folder.uploader.SSECustomerKey != "" {
+ 		input.SSECustomerAlgorithm = aws.String(folder.uploader.serverSideEncryption)
+ 		input.SSECustomerKey = aws.String(folder.uploader.SSECustomerKey)
+ 
+@@ -156,6 +209,11 @@ func (folder *Folder) ReadObject(objectRelativePath string) (io.ReadCloser, erro
+ 	return NewContentLengthValidator(reader, aws.Int64Value(object.ContentLength), objectPath), nil
+ }
+ 
++// ReadObjectVersion reads a specific version of an object by its version ID.
++func (folder *Folder) ReadObjectVersion(objectRelativePath string, versionID string) (io.ReadCloser, error) {
++	return folder.readObjectWithVersion(objectRelativePath, versionID)
++}
++
+ func (folder *Folder) GetSubFolder(subFolderRelativePath string) storage.Folder {
+ 	subFolder := NewFolder(
+ 		folder.s3API,
+@@ -177,6 +235,20 @@ func (folder *Folder) SetShowAllVersions(show bool) {
+ 	folder.config.showAllVersions = show
+ }
+ 
++// SetUseOldestVersion controls whether ReadObject fetches the oldest available
++// version of an object instead of the current (latest) one. This is useful for
++// recovering backups when the latest version has been deleted or tampered with.
++func (folder *Folder) SetUseOldestVersion(use bool) {
++	tracelog.DebugLogger.Printf("setting use oldest version %t for folder %s", use, folder.path)
++	folder.config.useOldestVersion = use
++}
++
++// GetUseOldestVersion returns whether this folder is configured to read the
++// oldest available version of objects.
++func (folder *Folder) GetUseOldestVersion() bool {
++	return folder.config.useOldestVersion
++}
++
+ func (folder *Folder) ListFolder() (objects []storage.Object, subFolders []storage.Folder, err error) {
+ 	prefix := aws.String(folder.path)
+ 	delimiter := aws.String("/")

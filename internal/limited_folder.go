@@ -49,3 +49,17 @@ func (lf *LimitedFolder) PutObjectWithContext(ctx context.Context, name string, 
 func (lf *LimitedFolder) SetShowAllVersions(show bool) {
 	storage.SetShowAllVersions(lf.Folder, show)
 }
+
+// SetUseOldestVersion delegates the "use oldest version" toggle to the underlying folder (if supported).
+// This is used by backup-fetch --oldest-version to recover from tampered/deleted backups.
+func (lf *LimitedFolder) SetUseOldestVersion(use bool) {
+	storage.SetUseOldestVersion(lf.Folder, use)
+}
+
+// GetUseOldestVersion delegates to the underlying folder (if supported).
+func (lf *LimitedFolder) GetUseOldestVersion() bool {
+	if uvf, ok := lf.Folder.(storage.UseOldestVersionFolder); ok {
+		return uvf.GetUseOldestVersion()
+	}
+	return false
+}

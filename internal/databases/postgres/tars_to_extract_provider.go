@@ -22,11 +22,12 @@ func (t FilesToExtractProviderImpl) Get(backup Backup, filesToUnwrap map[string]
 		return nil, nil, err
 	}
 
-	tarNames, err := backup.GetTarNames()
+	tarNames, err := backup.GetTars()
 	if err != nil {
 		return nil, nil, err
 	}
 	tracelog.DebugLogger.Printf("Tars to extract: '%+v'\n", tarNames)
+	//Filippov Here we form reader makers
 	concurrentTarsToExtract = make([]internal.ReaderMaker, 0, len(tarNames))
 	sequentialTarsToExtract = make([]internal.ReaderMaker, 0, 2)
 
@@ -38,8 +39,9 @@ func (t FilesToExtractProviderImpl) Get(backup Backup, filesToUnwrap map[string]
 		// with incomplete backup restoration.  But only if it
 		// exists: it won't in the case of WAL-E backup
 		// backwards compatibility.
-		if pgControlRe.MatchString(tarName) {
-			tarToExtract := internal.NewStorageReaderMaker(backup.GetTarPartitionFolder(), tarName)
+		if pgControlRe.MatchString(tarName.GetName()) {
+			//Filippov pass version and filter repeated tars
+			tarToExtract := internal.NewStorageReaderMaker(backup.GetTarPartitionFolder(), tarName.GetName())
 			sequentialTarsToExtract = append(sequentialTarsToExtract, tarToExtract)
 			continue
 		}
@@ -49,17 +51,18 @@ func (t FilesToExtractProviderImpl) Get(backup Backup, filesToUnwrap map[string]
 		// from some exclusive backup (likely not ours).
 		// We should override it in order to reach correct end of backup point.
 		// so, we should extract our `backup_label` after extracting regular tars.
-		if backupLabelRe.MatchString(tarName) {
-			tarToExtract := internal.NewStorageReaderMaker(backup.GetTarPartitionFolder(), tarName)
+		if backupLabelRe.MatchString(tarName.GetName()) {
+			//Filippov pass version and filter repeated tars
+			tarToExtract := internal.NewStorageReaderMaker(backup.GetTarPartitionFolder(), tarName.GetName())
 			sequentialTarsToExtract = append(sequentialTarsToExtract, tarToExtract)
 			continue
 		}
 
-		if skipRedundantTars && !shouldUnwrapTar(tarName, filesMeta, filesToUnwrap) {
+		if skipRedundantTars && !shouldUnwrapTar(tarName.GetName(), filesMeta, filesToUnwrap) {
 			continue
 		}
-
-		tarToExtract := internal.NewStorageReaderMaker(backup.GetTarPartitionFolder(), tarName)
+		//Filippov pass version and filter repeated tars
+		tarToExtract := internal.NewStorageReaderMaker(backup.GetTarPartitionFolder(), tarName.GetName())
 		concurrentTarsToExtract = append(concurrentTarsToExtract, tarToExtract)
 	}
 	return concurrentTarsToExtract, sequentialTarsToExtract, nil

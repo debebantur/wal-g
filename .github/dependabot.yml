@@ -4,28 +4,21 @@ version: 2
 # .github/workflows/update-libsodium-version.yml because Dependabot only
 # supports manifest-backed ecosystems and GitHub Actions references.
 
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: "weekly"
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
+    patterns: ["*"]
+    multi-ecosystem-group: "dependencies"
   - package-ecosystem: "gomod"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      dependabot:
-        patterns:
-          - "github.com/aws/aws-sdk-go-v2"
-          - "github.com/aws/aws-sdk-go-v2/*"
-          - "go.opentelemetry.io/otel"
-          - "go.opentelemetry.io/otel/*"
-          - "github.com/Azure/azure-sdk-for-go/*"
-          - "cloud.google.com/go"
-          - "cloud.google.com/go/*"
-          - "github.com/klauspost/compress"
-          - "github.com/pierrec/lz4/v4"
+    patterns: ["*"]
+    multi-ecosystem-group: "dependencies"
   - package-ecosystem: "gomod"
     directory: "/cmd/pg/exporter"
-    schedule:
-      interval: "weekly"
+    patterns: ["*"]
+    multi-ecosystem-group: "dependencies"

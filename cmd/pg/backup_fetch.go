@@ -11,6 +11,7 @@ import (
 	"github.com/wal-g/wal-g/internal/databases/postgres"
 	"github.com/wal-g/wal-g/internal/multistorage"
 	"github.com/wal-g/wal-g/internal/multistorage/policies"
+	"github.com/wal-g/wal-g/pkg/storages/storage"
 )
 
 const (
@@ -27,6 +28,7 @@ Separate parameters with comma. Use 'database' or 'database/namespace.table' as 
 Sets reverse delta unpack & skip redundant tars options automatically. Always downloads system databases and tables.`
 )
 
+var useOldestVersion bool
 var fileMask string
 var restoreSpec string
 var reverseDeltaUnpack bool
@@ -47,10 +49,10 @@ var backupFetchCmd = &cobra.Command{
 		targetBackupSelector, err := createTargetFetchBackupSelector(cmd, args, fetchTargetUserData)
 		tracelog.ErrorLogger.FatalOnError(err)
 
-		storage, err := internal.ConfigureMultiStorage(cmd.Context(), false)
+		multiStorage, err := internal.ConfigureMultiStorage(cmd.Context(), false)
 		tracelog.ErrorLogger.FatalOnError(err)
 
-		rootFolder := multistorage.SetPolicies(storage.RootFolder(), policies.UniteAllStorages)
+		rootFolder := multistorage.SetPolicies(multiStorage.RootFolder(), policies.UniteAllStorages)
 		if targetStorage == "" {
 			rootFolder, err = multistorage.UseAllAliveStorages(cmd.Context(), rootFolder)
 		} else {
@@ -58,6 +60,11 @@ var backupFetchCmd = &cobra.Command{
 		}
 		tracelog.ErrorLogger.FatalOnError(err)
 		tracelog.InfoLogger.Printf("Backup to fetch will be searched in storages: %v", multistorage.UsedStorages(rootFolder))
+
+		if useOldestVersion {
+			rootFolder, err = storage.WithOldestVersions(rootFolder)
+			tracelog.ErrorLogger.FatalOnError(err)
+		}
 
 		if partialRestoreArgs != nil {
 			skipRedundantTars = true
@@ -102,6 +109,8 @@ func createTargetFetchBackupSelector(cmd *cobra.Command,
 }
 
 func init() {
+	backupFetchCmd.Flags().BoolVar(&useOldestVersion, "use-oldest-version", false,
+		"Restore the oldest retained S3 data version of each object, including deleted objects")
 	backupFetchCmd.Flags().StringVar(&fileMask, "mask", "", maskFlagDescription)
 	backupFetchCmd.Flags().StringVar(&restoreSpec, "restore-spec", "", restoreSpecDescription)
 	backupFetchCmd.Flags().BoolVar(&reverseDeltaUnpack, "reverse-unpack",

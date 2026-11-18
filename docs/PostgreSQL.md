@@ -158,6 +158,35 @@ WAL-G can fetch the backup that has the specific UserData (stored in backup meta
 wal-g backup-fetch /path --target-user-data "{ \"x\": [3], \"y\": 4 }"
 ```
 
+To recover a backup whose S3 objects are hidden by delete markers, use:
+
+```bash
+wal-g backup-fetch /path/to/restore backup_name --use-oldest-version
+```
+
+This S3-only flag selects the oldest retained **data version of each object**,
+ignoring delete markers. It applies to sentinels, metadata, tar archives and delta
+backup dependencies, with either unpack method. `LATEST` and `--target-user-data`
+also search historical backups when this flag is set. For multiple destinations,
+use `--target-storage` to select the S3 destination to recover from.
+
+The data versions must still exist: permanently deleted versions or versions
+removed by lifecycle rules cannot be recovered. Versioning alone does not ensure
+recoverability; deletion by version ID (including WAL-G deletion of listed S3
+versions) permanently removes those versions. The credentials need
+`s3:ListBucketVersions` and `s3:GetObjectVersion` permissions.
+
+Selection happens independently for each object; it is not a point-in-time
+snapshot. Reusing a backup name or overwriting its objects can leave versions
+from different backup attempts. Check the recovered backup before relying on it.
+This flag affects `backup-fetch` only; PostgreSQL recovery may also require WAL
+that remains accessible to `wal-fetch`.
+
+Historical recovery lists versions within the backup catalog and the selected
+backup's tar directories, and scans versions under an object's key for individual
+reads. The cost grows with retained version history; ordinary restores keep their
+existing behavior.
+
 #### Reverse delta unpack
 
 Beta feature: WAL-G can unpack delta backups in reverse order to improve fetch efficiency.

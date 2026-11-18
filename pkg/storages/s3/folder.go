@@ -31,12 +31,13 @@ const (
 
 // TODO: Unit tests
 type Folder struct {
-	s3API       API
-	uploader    *Uploader
-	bucket      *string
-	path        string
-	config      *Config
-	allVersions bool
+	s3API          API
+	uploader       *Uploader
+	bucket         *string
+	path           string
+	config         *Config
+	allVersions    bool
+	oldestVersions bool
 }
 
 func NewFolder(
@@ -69,7 +70,7 @@ func (folder *Folder) headObject(ctx context.Context, objectRelativePath string)
 		Key:    aws.String(objectPath),
 	}
 
-	if folder.uploader.serverSideEncryption != "" && folder.uploader.SSECustomerKey != "" {
+	if folder.uploader != nil && folder.uploader.serverSideEncryption != "" && folder.uploader.SSECustomerKey != "" {
 		input.SSECustomerAlgorithm = aws.String(folder.uploader.serverSideEncryption)
 		input.SSECustomerKey = aws.String(sseCustomerKeyB64(folder.uploader.SSECustomerKey))
 
@@ -77,6 +78,16 @@ func (folder *Folder) headObject(ctx context.Context, objectRelativePath string)
 		input.SSECustomerKeyMD5 = aws.String(customerKeyMD5)
 	}
 
+	if folder.oldestVersions {
+		version, err := folder.oldestObject(ctx, objectRelativePath)
+		if err != nil {
+			return nil, err
+		}
+		if version == nil {
+			return nil, nil
+		}
+		input.VersionId = aws.String(version.GetVersionID())
+	}
 	output, err := folder.s3API.HeadObject(ctx, input)
 	if err != nil {
 		if isAwsNotExist(err) {
@@ -183,6 +194,16 @@ func (folder *Folder) ReadObject(ctx context.Context, objectRelativePath string)
 	objectPath := folder.path + objectRelativePath
 	input := folder.getObjectInput(objectPath)
 
+	if folder.oldestVersions {
+		version, err := folder.oldestObject(ctx, objectRelativePath)
+		if err != nil {
+			return nil, err
+		}
+		if version == nil {
+			return nil, storage.NewObjectNotFoundError(objectPath)
+		}
+		input.VersionId = aws.String(version.GetVersionID())
+	}
 	object, err := folder.s3API.GetObject(ctx, input)
 	if err != nil {
 		if isAwsNotExist(err) {
@@ -205,6 +226,7 @@ func (folder *Folder) GetSubFolder(subFolderRelativePath string) storage.Folder 
 		folder.config,
 	)
 	subFolder.allVersions = folder.allVersions
+	subFolder.oldestVersions = folder.oldestVersions
 	return subFolder
 }
 
@@ -237,6 +259,9 @@ func (folder *Folder) showsAllVersions() bool {
 }
 
 func (folder *Folder) ListFolder(ctx context.Context) (objects []storage.Object, subFolders []storage.Folder, err error) {
+	if folder.oldestVersions {
+		return folder.listOldestVersions(ctx)
+	}
 	prefix := aws.String(folder.path)
 	delimiter := aws.String("/")
 

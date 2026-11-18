@@ -49,6 +49,15 @@ review aids, not a substitute for reading the code on the branch being changed.
   actual objects within the exact backup prefix, including zero-byte objects;
   fail on inspection errors rather than treating them as an empty listing.
 
+- PostgreSQL `backup-fetch --use-oldest-version` selects retained S3 data versions
+  independently per key, including deleted sentinels and delta dependencies. Keep
+  version-aware Exists/Stat, listing and GET consistent through subfolders and
+  destination selection; an all-versions listing alone cannot restore deleted
+  objects. This is not a snapshot across reused backup names. See
+  `backup_fetch_versions_test.go`, S3 `oldest_version_test.go`, and the real
+  PostgreSQL/S3 restore in `backup_fetch_deleted_integration_test.go` (Docker
+  service `pg_backup_fetch_deleted_test`).
+
 ### Reservation/deletion design under discussion
 
 [Backup-name reservation (#2707)](https://github.com/wal-g/wal-g/pull/2707)
@@ -172,6 +181,10 @@ Removing a sentinel also does not protect a restore that has already read it.
   race tests for concurrency changes. Use the current Makefile/CI recipes for
   native dependencies and integration tests. Include Greenplum where shared
   PostgreSQL behavior changes.
+- `pg_ctl -w start` can return when a restored cluster accepts read-only
+  connections, before `recovery_target_action = promote` finishes. Wait for
+  `pg_is_in_recovery()` to become false before asserting promotion or stopping
+  the fixture; see `backup_fetch_deleted_integration_test.go`.
 - PostgreSQL package test initializers export Viper defaults to the environment.
   CLI integration tests must isolate inherited configuration variables; otherwise
   defaults such as `WALG_PG_WAL_SIZE=16` override an explicit 64 MiB config file.

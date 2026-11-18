@@ -270,3 +270,16 @@ func SetShowAllVersions(folder Folder, show bool) bool {
 	}
 	return false
 }
+
+// OldestVersionsView provides a restore view selecting the oldest retained data
+// version of each object, including objects hidden by delete markers.
+type OldestVersionsView interface {
+	WithOldestVersions() (Folder, error)
+}
+
+func WithOldestVersions(folder Folder) (Folder, error) {
+	if view, ok := folder.(OldestVersionsView); ok {
+		return view.WithOldestVersions()
+	}
+	return nil, fmt.Errorf("oldest-version restore is not supported by storage %T", folder)
+}

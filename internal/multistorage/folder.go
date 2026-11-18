@@ -792,6 +792,26 @@ func (mf Folder) WithAllVersions() storage.Folder {
 	return mf
 }
 
+// WithOldestVersions preserves storage selection and paths when selectors later
+// choose a backup's destination from the configured roots.
+func (mf Folder) WithOldestVersions() (storage.Folder, error) {
+	if len(mf.usedFolders) == 0 {
+		return nil, ErrNoUsedStorages
+	}
+	roots := make(map[string]storage.Folder, len(mf.usedFolders))
+	used := make([]NamedFolder, len(mf.usedFolders))
+	for i, folder := range mf.usedFolders {
+		root, err := storage.WithOldestVersions(mf.configuredRootFolders[folder.StorageName])
+		if err != nil {
+			return nil, fmt.Errorf("storage %s: %w", folder.StorageName, err)
+		}
+		roots[folder.StorageName] = root
+		used[i] = NamedFolder{Folder: root.GetSubFolder(mf.path), StorageName: folder.StorageName}
+	}
+	mf.configuredRootFolders, mf.usedFolders = roots, used
+	return mf, nil
+}
+
 var (
 	ErrNoUsedStorages  = fmt.Errorf("no storages are used")
 	ErrNoAliveStorages = fmt.Errorf("no alive storages")
